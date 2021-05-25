@@ -1,44 +1,67 @@
-﻿using System.Collections;
+﻿using Photon.Pun;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PlayerController : MonoBehaviour
+public class PlayerController : MonoBehaviour, IPunObservable
 {
+    private PhotonView view;
+    private SpriteRenderer spriteRenderer;
+
+    private bool isRed;
+    private Vector2Int direction;
+
+
+    public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
+    {
+        if (stream.IsWriting)
+        {
+            stream.SendNext(direction);
+        }
+        else
+        {
+            direction = (Vector2Int) stream.ReceiveNext();
+        }
+    }
+
+    private void Start()
+    {
+        view = GetComponent<PhotonView>();
+    }
     private void Update()
     {
-        if (this.gameObject.activeSelf)
+        if (view.IsMine)
         {
-            return;
+            if (Input.GetKey(KeyCode.LeftArrow))
+            {
+                direction = Vector2Int.left;
+            }
+            if (Input.GetKey(KeyCode.RightArrow))
+            {
+                direction = Vector2Int.right;
+            }
+            if (Input.GetKey(KeyCode.UpArrow))
+            {
+                direction = Vector2Int.up;
+            }
+            if (Input.GetKey(KeyCode.DownArrow))
+            {
+                direction = Vector2Int.down;
+            }
+          
         }
 
-        int horizontal = 0, vertical = 0;
-
-        horizontal = (int)(Input.GetAxisRaw("Horizontal"));
-        vertical = (int)(Input.GetAxisRaw("Vertical"));
-
-        if (horizontal != 0)
+        if (direction == Vector2Int.left)
         {
-            vertical = 0;
+            spriteRenderer.flipX = true;
         }
-        
-        if(horizontal!=0 || vertical != 0)
+        if(direction == Vector2Int.right)
         {
-            TryToMove(horizontal, vertical);
+            spriteRenderer.flipX = false;
         }
+
+      
     }
-
-
-
-
-
-    private void TryToMove(int horizontal, int vertical)
-    {
-
-    }
-
-
-    private void OnTriggerEnter2D(Collider2D other)
-    {
-
-    }
+   
+   
 }
