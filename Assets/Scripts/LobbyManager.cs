@@ -20,8 +20,6 @@ public class LobbyManager : MonoBehaviourPunCallbacks
 
     public override void OnConnectedToMaster()
     {
-        
-        //base.OnConnectedToMaster();
         Log("Connected to Master");
     }
     public void CreateRoom()

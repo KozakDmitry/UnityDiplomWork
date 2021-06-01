@@ -1,4 +1,5 @@
-﻿using Photon.Pun;
+﻿using ExitGames.Client.Photon;
+using Photon.Pun;
 using Photon.Realtime;
 using System;
 using System.Collections;
@@ -14,15 +15,16 @@ public class GameManager : MonoBehaviourPunCallbacks
     // Start is called before the first frame update
     void Start()
     {
-        position = new Vector3(UnityEngine.Random.Range(-5f, 5f), UnityEngine.Random.Range(-5f, 5f));
+        position = new Vector3(UnityEngine.Random.Range(1, 15), UnityEngine.Random.Range(1, 5));
         PhotonNetwork.Instantiate(PlayerPrefab.name,position,Quaternion.identity);
+        PhotonPeer.RegisterType(typeof(Vector2Int), 200,SerializeVector2Int , DeserializeVector2Int);
     }
 
 
     // Update is called once per frame
     void Update()
     {
-        
+       
     }
 
     public override void OnLeftRoom()
