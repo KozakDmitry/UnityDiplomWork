@@ -12,8 +12,9 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
     [SerializeField]
     private GameObject cellPrefab;
     private GameObject[,] cells;
-
-    private List<PlayerController> players = new List<PlayerController>();
+    [SerializeField]
+    private PanelManager panelManager;
+    public List<PlayerController> players = new List<PlayerController>();
 
     private double lastTickTime;
     private RaiseEventOptions options;
@@ -48,20 +49,26 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
     public void AddPlayer(PlayerController pl)
     {
         players.Add(pl);
-        cells[pl.position.x, pl.position.y].SetActive(false);
+        cells[pl.gamePosition.x, pl.gamePosition.y].SetActive(false);
     }
 
 
     private void Update()
     {
-        if(PhotonNetwork.Time >lastTickTime + 1  && PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount>=2)
+        //CheckTurnTime
+        if(PhotonNetwork.Time >lastTickTime + 1  && 
+            PhotonNetwork.IsMasterClient && 
+            PhotonNetwork.CurrentRoom.PlayerCount>=2)
         {
 
+            
             directions = players
-                .OrderBy(p => p.view.Owner.ActorNumber)
+                .Where(p=>!p.isDead)
+                .OrderBy(p => p.photonView.Owner.ActorNumber)
                 .Select(p => p.direction)
                 .ToArray();
 
+            //Determine players to check and send signal
             options = new RaiseEventOptions { Receivers = ReceiverGroup.Others };
             sendOptions = new SendOptions { Reliability = true };
             PhotonNetwork.RaiseEvent(13, directions, options ,sendOptions);
@@ -71,11 +78,17 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
         }
     }
 
+    //Making a move from everyone
     private void PerformTick(Vector2Int[] directions)
     {
         if(players.Count != directions.Length) { return; }
+ 
+        PlayerController[] sortedPlayers = 
+            players
+            .Where(p => !p.isDead)
+            .OrderBy(p => p.photonView.Owner.ActorNumber)
+            .ToArray();
         int i = 0;
-        PlayerController[] sortedPlayers = players.OrderBy(p => p.view.Owner.ActorNumber).ToArray();
         foreach (var player in sortedPlayers)
         {
             player.direction = directions[i++];
@@ -85,50 +98,68 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
         {
             MovePlayer(player);
         }
+        foreach (var player in players.Where(p => !p.isDead))
+        {
+            Vector2Int testPosition = player.gamePosition;
+            while (testPosition.y > 0 && !cells[testPosition.x, testPosition.y - 1].activeSelf)
+            {
+                testPosition.y--;
+            }
+            player.gamePosition = testPosition;
+        }
+        panelManager.setTexts(players);
         lastTickTime = PhotonNetwork.Time;
     }
     private void MinePlayer(PlayerController player)
     {
 
-        Vector2Int targerPosition = player.direction + player.position;
+        //Digging
+        Vector2Int targerPosition = player.gamePosition + player.direction;
         if (targerPosition.x < 0) { return; }
         if (targerPosition.y < 0) { return; }
         if (targerPosition.x >= cells.GetLength(0)) { return; }
         if (targerPosition.y >= cells.GetLength(1)) { return; }
 
-        cells[player.position.x, player.position.y].SetActive(false);
+        if(cells[targerPosition.x, targerPosition.y].activeSelf)
+        {
+            cells[targerPosition.x, targerPosition.y].SetActive(false);
+            player.score++;
+        }
+        
 
 
-        Vector2Int position = targerPosition;
-        PlayerController minePlayer = players.First(p => p.view.IsMine);
+        //CheckKill
+        Vector2Int testPosition = targerPosition;
+        PlayerController minePlayer = players.First(p => p.photonView.IsMine);
         if (minePlayer != player) {
-            while (position.y < cells.GetLength(1) && !cells[position.x, position.y].activeSelf)
+            while (testPosition.y < cells.GetLength(1) && !cells[testPosition.x, testPosition.y].activeSelf)
             {
-                if (position == minePlayer.position)
+                if (testPosition == minePlayer.gamePosition)
                 {
                     PhotonNetwork.LeaveRoom();
                     break;
                    
                 }
-                position.y++;
+                testPosition.y++;
             }
         }
     }
     private void MovePlayer(PlayerController player)
     {
-        player.position += player.direction;
-        if (player.position.x < 0) { player.position.x = 0; }
-        if (player.position.y < 0) { player.position.y = 0; }
-        if (player.position.x >= cells.GetLength(0)) { player.position.x = cells.GetLength(0) - 1; }
-        if (player.position.y >= cells.GetLength(1)) { player.position.y = cells.GetLength(1) - 1; }
+        //Moving
+        player.gamePosition += player.direction;
+        if (player.gamePosition.x < 0) { player.gamePosition.x = 0; }
+        if (player.gamePosition.y < 0) { player.gamePosition.y = 0; }
+        if (player.gamePosition.x >= cells.GetLength(0)) { player.gamePosition.x = cells.GetLength(0) - 1; }
+        if (player.gamePosition.y >= cells.GetLength(1)) { player.gamePosition.y = cells.GetLength(1) - 1; }
 
 
         int ladderLength = 0;
-        Vector2Int position = player.position;
-        while (position.y > 0 && cells[position.x, position.y - 1].activeSelf)
+        Vector2Int testPosition = player.gamePosition;
+        while (testPosition.y > 0 && !cells[testPosition.x, testPosition.y - 1].activeSelf)
         {
             ladderLength++;
-            position.y--;
+            testPosition.y--;
         }
 
         player.SetLadderLength(ladderLength);

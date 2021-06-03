@@ -2,8 +2,7 @@
 using Photon.Pun;
 using Photon.Realtime;
 using System;
-using System.Collections;
-using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -11,7 +10,10 @@ public class GameManager : MonoBehaviourPunCallbacks
 {
     [SerializeField]
     private GameObject PlayerPrefab;
+    [SerializeField]
+    private BoardManager boardManager;
     private Vector3 position;
+    private PlayerController player;
     // Start is called before the first frame update
     void Start()
     {
@@ -46,6 +48,11 @@ public class GameManager : MonoBehaviourPunCallbacks
     }
     public override void OnPlayerLeftRoom(Player otherPlayer)
     {
+        player = boardManager.players.First(p => p.photonView.Owner == null);
+        if (player != null)
+        {
+            player.Death();
+        }
         Debug.LogFormat("Player {0} left Room", otherPlayer.NickName);
     }
 

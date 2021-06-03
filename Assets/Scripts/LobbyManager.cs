@@ -8,10 +8,17 @@ public class LobbyManager : MonoBehaviourPunCallbacks
 {
 
     public Text LogText;
+    public InputField nickNameInput;
+    private string nickName;
     void Start()
     {
-        PhotonNetwork.NickName = "Player " + Random.Range(1, 10000);
+        nickName = PlayerPrefs.GetString("NickName", "Player " + Random.Range(1000, 9999));
+
+        PhotonNetwork.NickName = nickName;
+        nickNameInput.text = nickName;
+        
         Log("Player name is set to " + PhotonNetwork.NickName);
+
 
         PhotonNetwork.AutomaticallySyncScene = true;
         PhotonNetwork.GameVersion = "1";
@@ -24,12 +31,16 @@ public class LobbyManager : MonoBehaviourPunCallbacks
     }
     public void CreateRoom()
     {
+        PhotonNetwork.NickName = nickNameInput.text;
+        PlayerPrefs.SetString("NickName", nickNameInput.text);
         PhotonNetwork.CreateRoom(null, new Photon.Realtime.RoomOptions { MaxPlayers = 3 });
         Log("Created the Room");
     }
 
     public void JoinRoom()
     {
+        PhotonNetwork.NickName = nickNameInput.text;
+        PlayerPrefs.SetString("NickName", nickNameInput.text);
         PhotonNetwork.JoinRandomRoom();
     }
 

@@ -1,20 +1,29 @@
 ﻿using Photon.Pun;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour, IPunObservable
 {
 
     [HideInInspector]
-    public PhotonView view;
+    public PhotonView photonView;
     private SpriteRenderer spriteRenderer;
+    [SerializeField]
     private Transform ladder;
+    [SerializeField]
+    private Sprite deathSprite;
+    [SerializeField]
+    private TextMeshPro nickName;
+    [SerializeField]
+    private Color colorOfNickname;
     private Transform lastTile;
     //change
     public Vector2Int direction;
-    public Vector2Int position;
-
+    public Vector2Int gamePosition;
+    public bool isDead;
+    public int score = 0;
 
     public void SetLadderLength(int length)
     {
@@ -30,7 +39,12 @@ public class PlayerController : MonoBehaviour, IPunObservable
             Instantiate(lastTile, lastTile.position + Vector3.down, Quaternion.identity, ladder) ;
         }
     }
-
+    public void Death()
+    {
+        isDead = true;
+        spriteRenderer.sprite = deathSprite;
+        SetLadderLength(0);
+    }
     public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
     {
         if (stream.IsWriting)
@@ -45,11 +59,12 @@ public class PlayerController : MonoBehaviour, IPunObservable
 
     private void Start()
     {
-        view = GetComponent<PhotonView>();
+        photonView = GetComponent<PhotonView>();
         spriteRenderer = GetComponent<SpriteRenderer>();
 
-        position = new Vector2Int((int)transform.position.x, (int)transform.position.y);
-
+        gamePosition = new Vector2Int((int)transform.position.x, (int)transform.position.y);
+        nickName.SetText(photonView.Owner.NickName);
+        nickName.color = colorOfNickname;
         //change maybe
         FindObjectOfType<BoardManager>().AddPlayer(this);
 
@@ -57,7 +72,7 @@ public class PlayerController : MonoBehaviour, IPunObservable
     }
     private void Update()
     {
-        if (view.IsMine)
+        if (photonView.IsMine && !isDead)
         {
             if (Input.GetKey(KeyCode.LeftArrow))    {    direction = Vector2Int.left;   }
             if (Input.GetKey(KeyCode.RightArrow))   {    direction = Vector2Int.right;  }
@@ -71,7 +86,7 @@ public class PlayerController : MonoBehaviour, IPunObservable
 
 
         //change
-        transform.position = Vector3.Lerp(transform.position, (Vector2)position, Time.deltaTime * 3);
+        transform.position = Vector3.Lerp(transform.position, (Vector2)gamePosition, Time.deltaTime * 3);
       
     }
    
