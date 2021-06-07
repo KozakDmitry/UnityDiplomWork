@@ -33,7 +33,7 @@ public class LobbyManager : MonoBehaviourPunCallbacks
     {
         PhotonNetwork.NickName = nickNameInput.text;
         PlayerPrefs.SetString("NickName", nickNameInput.text);
-        PhotonNetwork.CreateRoom(null, new Photon.Realtime.RoomOptions { MaxPlayers = 3 });
+        PhotonNetwork.CreateRoom(null, new Photon.Realtime.RoomOptions { MaxPlayers = 12 ,CleanupCacheOnLeave =false});
         Log("Created the Room");
     }
 

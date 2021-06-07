@@ -20,15 +20,11 @@ public class GameManager : MonoBehaviourPunCallbacks
         position = new Vector3(UnityEngine.Random.Range(1, 15), UnityEngine.Random.Range(1, 5));
         PhotonNetwork.Instantiate(PlayerPrefab.name,position,Quaternion.identity);
         PhotonPeer.RegisterType(typeof(Vector2Int), 200,SerializeVector2Int , DeserializeVector2Int);
+        PhotonPeer.RegisterType(typeof(SyncData), 201, SyncData.Serialize, SyncData.Deserialize);
     }
 
 
-    // Update is called once per frame
-    void Update()
-    {
-       
-    }
-
+   
     public override void OnLeftRoom()
     {
        
@@ -43,6 +39,10 @@ public class GameManager : MonoBehaviourPunCallbacks
 
     public override void OnPlayerEnteredRoom(Player newPlayer)
     {
+        if (PhotonNetwork.IsMasterClient)
+        {
+            boardManager.SendSyncData(newPlayer);
+        }
         Debug.LogFormat("Player {0} entered Room", newPlayer.NickName);
 
     }

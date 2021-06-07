@@ -1,6 +1,7 @@
 ﻿using ExitGames.Client.Photon;
 using Photon.Pun;
 using Photon.Realtime;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -30,6 +31,41 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
                 directions = (Vector2Int[]) photonEvent.CustomData;
                 PerformTick(directions);
                 break;
+            case 15:
+                var data = (SyncData)photonEvent.CustomData;
+                StartCoroutine( OnSyncDataReceived(data));
+                break;
+        }
+    }
+
+
+    //return sync data to players
+    private IEnumerator OnSyncDataReceived(SyncData data)
+    {
+        PlayerController[] sortedPlayers;
+        do
+        {
+            yield return null;
+            sortedPlayers = players
+             .Where(p => !p.isDead)
+             .Where(p => !p.photonView.IsMine)
+             .OrderBy(p => p.photonView.Owner.ActorNumber)
+             .ToArray();
+        } while (sortedPlayers.Length != data.positions.Length);
+        for(int i = 0; i < sortedPlayers.Length; i++)
+        {
+            sortedPlayers[i].gamePosition = data.positions[i];
+            sortedPlayers[i].score = data.scores[i];
+            sortedPlayers[i].transform.position = (Vector2)sortedPlayers[i].gamePosition;
+        }
+
+        for(int x = 0; x < cells.GetLength(0); x++)
+        { 
+            for(int y = 0; y < cells.GetLength(1); y++)
+            {
+                bool cellActive = data.mapData.Get(x + y * cells.GetLength(0));
+                if(!cellActive) cells[x, y].SetActive(false); 
+            }
         }
     }
 
@@ -110,9 +146,47 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
         panelManager.setTexts(players);
         lastTickTime = PhotonNetwork.Time;
     }
+
+    //Syncronise data, making a array of data
+    public void SendSyncData(Player player)
+    {
+        SyncData data = new SyncData();
+
+        data.positions = new Vector2Int[players.Count];
+        data.scores = new int[players.Count];
+
+
+        PlayerController[] sortedPlayers = players
+            .Where(p => !p.isDead)
+            .OrderBy(p => p.photonView.Owner.ActorNumber)
+            .ToArray();
+        for(int i =0; i < sortedPlayers.Length; i++)
+        {
+            data.positions[i] = sortedPlayers[i].gamePosition;
+            data.scores[i] = sortedPlayers[i].score;
+        }
+
+        //change
+        data.mapData = new BitArray(20*10);
+        for(int x = 0; x < cells.GetLength(0); x++)
+        {
+            for(int y = 0; y < cells.GetLength(1); y++)
+            {
+                data.mapData.Set(x + y * cells.GetLength(0), cells[x, y].activeSelf);
+            }
+        }
+        options = new RaiseEventOptions { TargetActors = new[] {player.ActorNumber } };
+        sendOptions = new SendOptions { Reliability = true };
+        PhotonNetwork.RaiseEvent(13, directions, options, sendOptions);
+
+        PhotonNetwork.RaiseEvent(15, data, options, sendOptions);
+    }
+
+
+    //Dig and check who was killed
     private void MinePlayer(PlayerController player)
     {
-
+        if (player.direction == Vector2Int.zero) return;
         //Digging
         Vector2Int targerPosition = player.gamePosition + player.direction;
         if (targerPosition.x < 0) { return; }
@@ -144,6 +218,8 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
             }
         }
     }
+
+    //Moving player
     private void MovePlayer(PlayerController player)
     {
         //Moving
