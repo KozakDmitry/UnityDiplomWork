@@ -10,9 +10,7 @@ using UnityEngine.Tilemaps;
 
 public class BoardManager : MonoBehaviour, IOnEventCallback
 {
-    [SerializeField]
-    private GameObject cellPrefab;
-    private GameObject[,] cells;
+    private bool[,] cells;
     [SerializeField]
     private PanelManager panelManager;
     public List<PlayerController> players = new List<PlayerController>();
@@ -23,6 +21,17 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
     private Vector2Int[] directions;
 
 
+    [SerializeField]
+    private TileBase stonecellTile;
+    [SerializeField]
+    private TileBase grassCellTile;
+    [SerializeField]
+    private TileBase dirtCellTile;
+
+    [SerializeField]
+    private Tilemap tilemap;
+    [SerializeField]
+    private TileBase rockTile;
     public void OnEvent(EventData photonEvent)
     {
         switch (photonEvent.Code)
@@ -38,6 +47,31 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
         }
     }
 
+
+
+    public void SetCell(Vector2Int pos, bool set)
+    {
+        cells[pos.x, pos.y] = set;
+        TileBase cell;
+        if (!set)
+        {
+            cell = null;
+
+        }
+        else if (pos.y < 10)
+        {
+            cell = stonecellTile;
+        }
+        else if (pos.y<20)
+        {
+            cell = dirtCellTile;
+        }
+        else
+        {
+            cell = grassCellTile;
+        }
+        tilemap.SetTile((Vector3Int)pos,cell); 
+    }
 
     //return sync data to players
     private IEnumerator OnSyncDataReceived(SyncData data)
@@ -64,28 +98,38 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
             for(int y = 0; y < cells.GetLength(1); y++)
             {
                 bool cellActive = data.mapData.Get(x + y * cells.GetLength(0));
-                if(!cellActive) cells[x, y].SetActive(false); 
+                if (!cellActive) SetCell(new Vector2Int(x, y), false);
             }
         }
     }
 
     void Start()
     {
-        cells = new GameObject[20, 10];
+        cells = new bool[Constants.fieldHeigth, Constants.fieldWidth];
         for(int x = 0; x < cells.GetLength(0); x++)
         {
             for(int y = 0; y < cells.GetLength(1); y++)
             {
-                cells[x, y] = Instantiate(cellPrefab, new Vector3(x, y), Quaternion.identity, transform);
+                SetCell(new Vector2Int(x, y), true);
             }
         }
 
+        for (int x = 0; x < cells.GetLength(0); x++)
+        {
+            tilemap.SetTile(new Vector3Int(x, -1, 0), rockTile);
+            tilemap.SetTile(new Vector3Int(x, cells.GetLength(1), 0), rockTile);
+        }
+        for (int y = 0; y < cells.GetLength(1); y++)
+        {
+            tilemap.SetTile(new Vector3Int(-1, y, 0), rockTile);
+            tilemap.SetTile(new Vector3Int(cells.GetLength(0), y, 0), rockTile);
+        }
     }
 
     public void AddPlayer(PlayerController pl)
     {
         players.Add(pl);
-        cells[pl.gamePosition.x, pl.gamePosition.y].SetActive(false);
+        SetCell(pl.gamePosition, false);
     }
 
 
@@ -137,7 +181,7 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
         foreach (var player in players.Where(p => !p.isDead))
         {
             Vector2Int testPosition = player.gamePosition;
-            while (testPosition.y > 0 && !cells[testPosition.x, testPosition.y - 1].activeSelf)
+            while (testPosition.y > 0 && !cells[testPosition.x, testPosition.y - 1])
             {
                 testPosition.y--;
             }
@@ -167,12 +211,12 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
         }
 
         //change
-        data.mapData = new BitArray(20*10);
+        data.mapData = new BitArray(Constants.fieldWidth*Constants.fieldWidth);
         for(int x = 0; x < cells.GetLength(0); x++)
         {
             for(int y = 0; y < cells.GetLength(1); y++)
             {
-                data.mapData.Set(x + y * cells.GetLength(0), cells[x, y].activeSelf);
+                data.mapData.Set(x + y * cells.GetLength(0), cells[x, y]);
             }
         }
         options = new RaiseEventOptions { TargetActors = new[] {player.ActorNumber } };
@@ -194,9 +238,9 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
         if (targerPosition.x >= cells.GetLength(0)) { return; }
         if (targerPosition.y >= cells.GetLength(1)) { return; }
 
-        if(cells[targerPosition.x, targerPosition.y].activeSelf)
+        if(cells[targerPosition.x, targerPosition.y])
         {
-            cells[targerPosition.x, targerPosition.y].SetActive(false);
+            SetCell(targerPosition, false);
             player.score++;
         }
         
@@ -206,7 +250,7 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
         Vector2Int testPosition = targerPosition;
         PlayerController minePlayer = players.First(p => p.photonView.IsMine);
         if (minePlayer != player) {
-            while (testPosition.y < cells.GetLength(1) && !cells[testPosition.x, testPosition.y].activeSelf)
+            while (testPosition.y < cells.GetLength(1) && !cells[testPosition.x, testPosition.y])
             {
                 if (testPosition == minePlayer.gamePosition)
                 {
@@ -232,7 +276,7 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
 
         int ladderLength = 0;
         Vector2Int testPosition = player.gamePosition;
-        while (testPosition.y > 0 && !cells[testPosition.x, testPosition.y - 1].activeSelf)
+        while (testPosition.y > 0 && !cells[testPosition.x, testPosition.y - 1])
         {
             ladderLength++;
             testPosition.y--;

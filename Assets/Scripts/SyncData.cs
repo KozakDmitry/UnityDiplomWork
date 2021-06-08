@@ -12,7 +12,7 @@ public class SyncData
     public static object Deserialize(byte[] bytes)
     {
         SyncData data = new SyncData();
-        int players = (bytes.Length - 20*10/8)/12;
+        int players = (bytes.Length - Constants.fieldWidth*Constants.fieldHeigth/8)/12;
 
         data.positions = new Vector2Int[players];
         data.scores = new int[players]; 
@@ -24,7 +24,7 @@ public class SyncData
             data.scores[i] = BitConverter.ToInt32(bytes, 8 * players + 4 * i);
         }
 
-        byte[] mapBytes = new byte[20 * 10 / 8];
+        byte[] mapBytes = new byte[Constants.fieldWidth * Constants.fieldHeigth / 8];
         Array.Copy(bytes,players*12 ,mapBytes, 0 , mapBytes.Length);
         data.mapData = new BitArray(mapBytes);
 

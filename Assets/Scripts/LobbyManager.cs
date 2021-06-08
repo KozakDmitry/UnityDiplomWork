@@ -29,6 +29,14 @@ public class LobbyManager : MonoBehaviourPunCallbacks
     {
         Log("Connected to Master");
     }
+
+    public void StartGame()
+    {
+        PhotonNetwork.NickName = nickNameInput.text;
+        PlayerPrefs.SetString("Nickname", nickNameInput.text);
+
+        PhotonNetwork.JoinRandomRoom();
+    }
     public void CreateRoom()
     {
         PhotonNetwork.NickName = nickNameInput.text;
@@ -56,5 +64,16 @@ public class LobbyManager : MonoBehaviourPunCallbacks
         LogText.text += message;
     }
 
+    public override void OnJoinRandomFailed(short returnCode, string message)
+    {
+        Log("Failed to join room " + message);
+        PhotonNetwork.CreateRoom(null, new Photon.Realtime.RoomOptions { MaxPlayers = 12, CleanupCacheOnLeave = false });
+
+    }
+    public override void OnCreateRoomFailed(short returnCode, string message)
+    {
+        Log("Failed to create room " + message);
+        base.OnCreateRoomFailed(returnCode, message);
+    }
 
 }
