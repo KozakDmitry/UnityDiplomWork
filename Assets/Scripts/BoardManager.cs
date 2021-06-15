@@ -32,6 +32,117 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
     private Tilemap tilemap;
     [SerializeField]
     private TileBase rockTile;
+
+
+
+
+
+
+    public void AddPlayer(PlayerController pl)
+    {
+        players.Add(pl);
+        SetCell(pl.gamePosition, false);
+    }
+
+    public void SetCell(Vector2Int pos, bool set)
+    {
+        cells[pos.x, pos.y] = set;
+        TileBase cell;
+        if (!set)
+        {
+            cell = null;
+        }
+        else
+        {
+            cell = grassCellTile;
+        }
+        tilemap.SetTile((Vector3Int)pos, cell);
+    }
+
+
+    void Start()
+    {
+
+        cells = new bool[Constants.fieldWidth, Constants.fieldHeigth];
+        for (int x = 0; x < cells.GetLength(0); x++)
+        {
+            for (int y = 0; y < cells.GetLength(1); y++)
+            {
+                SetCell(new Vector2Int(x, y), true);
+            }
+        }
+
+        for (int x = 0; x < cells.GetLength(0); x++)
+        {
+            tilemap.SetTile(new Vector3Int(x, -1, 0), rockTile);
+            tilemap.SetTile(new Vector3Int(x, cells.GetLength(1), 0), rockTile);
+        }
+        for (int y = 0; y < cells.GetLength(1); y++)
+        {
+            tilemap.SetTile(new Vector3Int(-1, y, 0), rockTile);
+            tilemap.SetTile(new Vector3Int(cells.GetLength(0), y, 0), rockTile);
+        }
+    }
+    private void Update()
+    {
+        //CheckTurnTime
+        if (PhotonNetwork.Time > lastTickTime + 1 &&
+            PhotonNetwork.IsMasterClient &&
+            PhotonNetwork.CurrentRoom.PlayerCount >= 1)
+        {
+
+
+            Vector2Int[] directions = players
+                .Where(p => !p.isDead)
+                .OrderBy(p => p.photonView.Owner.ActorNumber)
+                .Select(p => p.direction)
+                .ToArray();
+
+            //Determine players to check and send signal
+            options = new RaiseEventOptions { Receivers = ReceiverGroup.Others };
+            sendOptions = new SendOptions { Reliability = true };
+            PhotonNetwork.RaiseEvent(13, directions, options, sendOptions);
+
+
+            PerformTick(directions);
+        }
+    }
+
+    //Syncronise data, making a array of data
+    public void SendSyncData(Player player)
+    {
+        SyncData data = new SyncData();
+
+        data.positions = new Vector2Int[players.Count];
+        data.scores = new int[players.Count];
+
+
+        PlayerController[] sortedPlayers = players
+            .Where(p => !p.isDead)
+            .OrderBy(p => p.photonView.Owner.ActorNumber)
+            .ToArray();
+        for (int i = 0; i < sortedPlayers.Length; i++)
+        {
+            data.positions[i] = sortedPlayers[i].gamePosition;
+            data.scores[i] = sortedPlayers[i].score;
+        }
+
+        //change
+        data.mapData = new BitArray(Constants.fieldWidth * Constants.fieldWidth);
+        for (int x = 0; x < cells.GetLength(0); x++)
+        {
+            for (int y = 0; y < cells.GetLength(1); y++)
+            {
+                data.mapData.Set(x + y * cells.GetLength(0), cells[x, y]);
+            }
+        }
+        RaiseEventOptions options = new RaiseEventOptions { TargetActors = new[] { player.ActorNumber } };
+        SendOptions sendOptions = new SendOptions { Reliability = true };
+        //PhotonNetwork.RaiseEvent(13, directions, options, sendOptions);
+
+        PhotonNetwork.RaiseEvent(15, data, options, sendOptions);
+    }
+
     public void OnEvent(EventData photonEvent)
     {
         switch (photonEvent.Code)
@@ -49,29 +160,7 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
 
 
 
-    public void SetCell(Vector2Int pos, bool set)
-    {
-        cells[pos.x, pos.y] = set;
-        TileBase cell;
-        if (!set)
-        {
-            cell = null;
-
-        }
-        else if (pos.y < 10)
-        {
-            cell = stonecellTile;
-        }
-        else if (pos.y<20)
-        {
-            cell = dirtCellTile;
-        }
-        else
-        {
-            cell = grassCellTile;
-        }
-        tilemap.SetTile((Vector3Int)pos,cell); 
-    }
+   
 
     //return sync data to players
     private IEnumerator OnSyncDataReceived(SyncData data)
@@ -103,60 +192,8 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
         }
     }
 
-    void Start()
-    {
-        cells = new bool[Constants.fieldHeigth, Constants.fieldWidth];
-        for(int x = 0; x < cells.GetLength(0); x++)
-        {
-            for(int y = 0; y < cells.GetLength(1); y++)
-            {
-                SetCell(new Vector2Int(x, y), true);
-            }
-        }
+   
 
-        for (int x = 0; x < cells.GetLength(0); x++)
-        {
-            tilemap.SetTile(new Vector3Int(x, -1, 0), rockTile);
-            tilemap.SetTile(new Vector3Int(x, cells.GetLength(1), 0), rockTile);
-        }
-        for (int y = 0; y < cells.GetLength(1); y++)
-        {
-            tilemap.SetTile(new Vector3Int(-1, y, 0), rockTile);
-            tilemap.SetTile(new Vector3Int(cells.GetLength(0), y, 0), rockTile);
-        }
-    }
-
-    public void AddPlayer(PlayerController pl)
-    {
-        players.Add(pl);
-        SetCell(pl.gamePosition, false);
-    }
-
-
-    private void Update()
-    {
-        //CheckTurnTime
-        if(PhotonNetwork.Time >lastTickTime + 1  && 
-            PhotonNetwork.IsMasterClient && 
-            PhotonNetwork.CurrentRoom.PlayerCount>=2)
-        {
-
-            
-            directions = players
-                .Where(p=>!p.isDead)
-                .OrderBy(p => p.photonView.Owner.ActorNumber)
-                .Select(p => p.direction)
-                .ToArray();
-
-            //Determine players to check and send signal
-            options = new RaiseEventOptions { Receivers = ReceiverGroup.Others };
-            sendOptions = new SendOptions { Reliability = true };
-            PhotonNetwork.RaiseEvent(13, directions, options ,sendOptions);
-
-
-            PerformTick(directions);
-        }
-    }
 
     //Making a move from everyone
     private void PerformTick(Vector2Int[] directions)
@@ -178,7 +215,7 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
         {
             MovePlayer(player);
         }
-        foreach (var player in players.Where(p => !p.isDead))
+        foreach (var player in players.Where(p => p.isDead))
         {
             Vector2Int testPosition = player.gamePosition;
             while (testPosition.y > 0 && !cells[testPosition.x, testPosition.y - 1])
@@ -191,41 +228,7 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
         lastTickTime = PhotonNetwork.Time;
     }
 
-    //Syncronise data, making a array of data
-    public void SendSyncData(Player player)
-    {
-        SyncData data = new SyncData();
-
-        data.positions = new Vector2Int[players.Count];
-        data.scores = new int[players.Count];
-
-
-        PlayerController[] sortedPlayers = players
-            .Where(p => !p.isDead)
-            .OrderBy(p => p.photonView.Owner.ActorNumber)
-            .ToArray();
-        for(int i =0; i < sortedPlayers.Length; i++)
-        {
-            data.positions[i] = sortedPlayers[i].gamePosition;
-            data.scores[i] = sortedPlayers[i].score;
-        }
-
-        //change
-        data.mapData = new BitArray(Constants.fieldWidth*Constants.fieldWidth);
-        for(int x = 0; x < cells.GetLength(0); x++)
-        {
-            for(int y = 0; y < cells.GetLength(1); y++)
-            {
-                data.mapData.Set(x + y * cells.GetLength(0), cells[x, y]);
-            }
-        }
-        options = new RaiseEventOptions { TargetActors = new[] {player.ActorNumber } };
-        sendOptions = new SendOptions { Reliability = true };
-        PhotonNetwork.RaiseEvent(13, directions, options, sendOptions);
-
-        PhotonNetwork.RaiseEvent(15, data, options, sendOptions);
-    }
-
+    
 
     //Dig and check who was killed
     private void MinePlayer(PlayerController player)
@@ -266,8 +269,9 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
     //Moving player
     private void MovePlayer(PlayerController player)
     {
-        //Moving
+      
         player.gamePosition += player.direction;
+
         if (player.gamePosition.x < 0) { player.gamePosition.x = 0; }
         if (player.gamePosition.y < 0) { player.gamePosition.y = 0; }
         if (player.gamePosition.x >= cells.GetLength(0)) { player.gamePosition.x = cells.GetLength(0) - 1; }
@@ -276,8 +280,10 @@ public class BoardManager : MonoBehaviour, IOnEventCallback
 
         int ladderLength = 0;
         Vector2Int testPosition = player.gamePosition;
+
         while (testPosition.y > 0 && !cells[testPosition.x, testPosition.y - 1])
         {
+          
             ladderLength++;
             testPosition.y--;
         }

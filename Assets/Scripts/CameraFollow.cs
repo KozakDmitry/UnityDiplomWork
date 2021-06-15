@@ -7,7 +7,7 @@ public class CameraFollow : MonoBehaviour
     [HideInInspector]
     public Transform target;
     private Vector3 velocity;
-    private Vector3 targetPosition;
+   
     private void Start()
     {
         
@@ -17,7 +17,7 @@ public class CameraFollow : MonoBehaviour
     {
         if(target != null)
         {
-            targetPosition = target.position;
+            Vector3 targetPosition = target.position;
             targetPosition.z = transform.position.z;
             transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref velocity, 0.2f);
         }

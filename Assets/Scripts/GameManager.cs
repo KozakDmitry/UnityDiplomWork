@@ -9,11 +9,15 @@ using UnityEngine.SceneManagement;
 public class GameManager : MonoBehaviourPunCallbacks
 {
     [SerializeField]
+    private GameObject leaveButton;
+    [SerializeField]
+    private GameObject waitingButton;
+    [SerializeField]
     private GameObject PlayerPrefab;
     [SerializeField]
     private BoardManager boardManager;
     private Vector3 position;
-    private PlayerController player;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -22,9 +26,21 @@ public class GameManager : MonoBehaviourPunCallbacks
         PhotonPeer.RegisterType(typeof(Vector2Int), 200,SerializeVector2Int , DeserializeVector2Int);
         PhotonPeer.RegisterType(typeof(SyncData), 201, SyncData.Serialize, SyncData.Deserialize);
     }
+    private void Update()
+    {
+        if (PhotonNetwork.CurrentRoom.PlayerCount >= 1)
+        {
+            leaveButton.SetActive(true);
+            waitingButton.SetActive(false);
+        }
+        else
+        {
+            leaveButton.SetActive(false);
+            waitingButton.SetActive(true);
+        }
+    }
 
 
-   
     public override void OnLeftRoom()
     {
        
@@ -48,7 +64,7 @@ public class GameManager : MonoBehaviourPunCallbacks
     }
     public override void OnPlayerLeftRoom(Player otherPlayer)
     {
-        player = boardManager.players.First(p => p.photonView.Owner == null);
+        PlayerController player = boardManager.players.First(p => p.photonView.Owner == null);
         if (player != null)
         {
             player.Death();
